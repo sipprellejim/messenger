@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Messenger</title>
+<style>
+#login {
+    width: 60%;
+	border: 1px solid black;
+	text-align: center;
+	margin: auto;
+}
+
+#messages {
+    width: 60%;
+	border: 1px solid black;
+	text-align: center;
+	margin: auto;
+	display: none;
+}
+
+#messagestitle {
+    text-align: right;
+}
+
+.message {
+    border: 1px solid black;
+}
+
+#conversation {
+    display: none;
+	text-align: center;
+}
+
+#openconversation {
+    width: 60%;
+	border: 1px solid black;
+	text-align: center;
+	margin: auto;
+}
+</style>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+var user;
+var refreshInterval;
+
+function refreshConversation() {
+	$.post("/get_messages",
+	{
+		emailPartner: user
+	},
+	function(data, status){
+		$("#login").hide()
+		$("#messages").hide()
+		$("#openconversation").html(user)
+		$("#openconversation").append("<a href=\"javascript:view_conversations()\">Back to conversations</a><br>")
+			
+		messages = JSON.parse(data)
+		messages.forEach(function(value) {
+			message = value[2]
+			if(value[0] == user) {
+				$("#openconversation").append("<span style='text-align: left; display: block;'>" + message + "</span><br>");
+			} else {
+				$("#openconversation").append("<span style='text-align: right; display: block;'>" + message + "</span><br>");
+			}
+		})
+		$("#conversation").show()
+	});
+}
+
+function login() {
+    $.post("/login",
+    {
+        email: $("#loginemail").val(),
+        password: $("#password").val()
+    },
+    function(data, status){
+	    if(data == "\"login successful\"")
+		{
+			view_conversations();
+		} else {
+			$("#message").html("Login failed.")
+		}
+    });
+}
+
+function view_conversations() {
+	clearInterval(refreshInterval)
+
+    $("#login").hide()
+	$("#conversation").hide()
+	
+	$.get("/get_open_conversations", function(data, status){
+	    conversation_partners = JSON.parse(data)
+		$("#messages").html("<span id=\"messagestitle\">Messages" +
+		"<input type='email' id='newConversationEmail' placeholder='email'>" +
+		"<input type='text' id='newConversationMessage' placeholder='first message'>" +
+		"<input type='button' value='Open new conversation' onclick='opennewconversation();'><br>" + 
+		"<span id='usernotfound'></span></span><br>");
+		conversation_partners.forEach(function(value) {
+			$("#messages").append("<div class=\"message\">" + 
+				"<a href=\"javascript:view_conversation('" + value + "')\">" + value + "</a></div>");
+		})
+		
+		$("#messages").show()
+    });
+}
+
+function opennewconversation() {
+	emailTo = $("#newConversationEmail").val();
+	$.post("/send_message",
+    {
+        emailTo: emailTo,
+		content: $("#newConversationMessage").val()
+    },
+    function(data, status){
+		$("#newConversationEmail").val("")
+		$("#newConversationEmail").val("")
+		if(data == "\"message sent\"") {
+			view_conversation(emailTo)
+		} else {
+			$("#usernotfound").html("Error: user not found")
+		}
+    });
+}
+
+function view_conversation(conversation_user) {
+	user = conversation_user;
+	refreshInterval = setInterval(refreshConversation, 1000);
+}
+
+function send() {
+	$.post("/send_message",
+    {
+        emailTo: user,
+		content: $("#messageToSend").val()
+    },
+    function(data, status){
+		$("#messageToSend").val("")
+    });
+}
+
+function register() {
+    $.post("/register",
+    {
+        email: $("#loginemail").val(),
+        password: $("#password").val()
+    },
+    function(data, status){
+	    if(data == "\"registration successful\"")
+		{
+			$("#message").html("Registration succeeded.")
+
+		} else {
+			$("#message").html("Registration failed.")
+		}
+    });
+}
+
+</script>
+</head>
+
+<body>
+
+  <div id="login">
+    <span>Login/Register</span><br>
+	<span id="message"></span><br>
+    <input type="email" id="loginemail" name="email"><br>
+    <input type="password" id="password" name="password"><br>
+    <input onclick="login();" type="button" value="Login"><br>
+	<input onclick="register();" type="button" value="Register">
+  </div>
+
+  <div id="messages">
+  </div>
+  <div id="conversation">
+	<div id="openconversation">
+	</div>
+	<div id="messaging">
+		<input type="text" id="messageToSend"><input type="button" value="send" onclick="send();"><br>
+	</div>
+  </div>
+</body>
+</html>
